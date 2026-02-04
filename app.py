@@ -16,7 +16,7 @@ st.set_page_config(
     page_title="Odds Movement",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # Clean CSS
