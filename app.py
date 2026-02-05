@@ -214,6 +214,8 @@ if not st.session_state.auto_fetched:
     today = now.strftime("%Y-%m-%d")
     current_hour = now.hour
 
+    fetched_something = False
+
     # Check if today's data exists
     today_counts = get_snapshot_counts(today)
     morning_exists = today_counts.get("morning", 0) > 0
@@ -221,23 +223,27 @@ if not st.session_state.auto_fetched:
 
     # Auto-fetch morning if it's past 1 PM and missing
     if current_hour >= 13 and not morning_exists:
-        with st.spinner("Auto-fetching morning odds..."):
+        with st.spinner(f"Auto-fetching morning odds for {today}..."):
             try:
                 collect_snapshot(snapshot_type="morning", force=True)
-                st.toast("Morning odds fetched!", icon="☀️")
+                fetched_something = True
             except Exception as e:
-                st.toast(f"Failed to fetch morning odds: {e}", icon="⚠️")
+                st.error(f"Failed to fetch morning odds: {e}")
 
     # Auto-fetch evening if it's past 6 PM and missing
     if current_hour >= 18 and not evening_exists:
-        with st.spinner("Auto-fetching evening odds..."):
+        with st.spinner(f"Auto-fetching evening odds for {today}..."):
             try:
                 collect_snapshot(snapshot_type="evening", force=True)
-                st.toast("Evening odds fetched!", icon="🌙")
+                fetched_something = True
             except Exception as e:
-                st.toast(f"Failed to fetch evening odds: {e}", icon="⚠️")
+                st.error(f"Failed to fetch evening odds: {e}")
 
     st.session_state.auto_fetched = True
+
+    # Rerun to show new data
+    if fetched_something:
+        st.rerun()
 
 # Sidebar
 with st.sidebar:
