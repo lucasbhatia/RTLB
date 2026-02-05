@@ -4,12 +4,30 @@ import os
 from dataclasses import dataclass
 
 
+def get_api_key():
+    """Get API key from environment or Streamlit secrets."""
+    # First try environment variable
+    key = os.getenv("ODDS_API_KEY")
+    if key and key != "YOUR_ODDS_API_KEY":
+        return key
+
+    # Then try Streamlit secrets
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and "ODDS_API_KEY" in st.secrets:
+            return st.secrets["ODDS_API_KEY"]
+    except Exception:
+        pass
+
+    return "YOUR_ODDS_API_KEY"
+
+
 @dataclass(frozen=True)
 class Config:
     """Application configuration."""
-    
+
     # API Settings
-    ODDS_API_KEY: str = os.getenv("ODDS_API_KEY", "YOUR_ODDS_API_KEY")
+    ODDS_API_KEY: str = get_api_key()
     BASE_URL: str = "https://api.the-odds-api.com/v4/sports"
     
     # Database

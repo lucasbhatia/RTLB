@@ -77,6 +77,16 @@ def get_diff_class(diff):
 @st.dialog("Fetch Morning Odds")
 def confirm_morning_fetch():
     """Confirmation dialog for morning odds fetch."""
+    from config import config
+
+    # Check API key
+    if config.ODDS_API_KEY == "YOUR_ODDS_API_KEY":
+        st.error("API key not configured!")
+        st.caption("Add ODDS_API_KEY to Streamlit secrets or environment variables.")
+        if st.button("Close", use_container_width=True):
+            st.rerun()
+        return
+
     st.write("Are you sure you want to fetch **morning** odds?")
     st.caption("This will use an API request and overwrite existing morning data for today.")
     col1, col2 = st.columns(2)
@@ -97,6 +107,16 @@ def confirm_morning_fetch():
 @st.dialog("Fetch Evening Odds")
 def confirm_evening_fetch():
     """Confirmation dialog for evening odds fetch."""
+    from config import config
+
+    # Check API key
+    if config.ODDS_API_KEY == "YOUR_ODDS_API_KEY":
+        st.error("API key not configured!")
+        st.caption("Add ODDS_API_KEY to Streamlit secrets or environment variables.")
+        if st.button("Close", use_container_width=True):
+            st.rerun()
+        return
+
     st.write("Are you sure you want to fetch **evening** odds?")
     st.caption("This will use an API request and overwrite existing evening data for today.")
     col1, col2 = st.columns(2)
