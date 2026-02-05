@@ -2,6 +2,7 @@
 
 import streamlit as st
 from datetime import datetime
+import pytz
 
 from database import (
     get_all_dates,
@@ -10,6 +11,9 @@ from database import (
     init_database,
 )
 from collector import collect_snapshot
+
+# Timezone
+EST = pytz.timezone("US/Eastern")
 
 # Page config
 st.set_page_config(
@@ -200,6 +204,40 @@ def render_game_card(game, container):
 
 # Initialize
 init_database()
+
+# Auto-fetch today's data if missing (runs once per session)
+if "auto_fetched" not in st.session_state:
+    st.session_state.auto_fetched = False
+
+if not st.session_state.auto_fetched:
+    now = datetime.now(EST)
+    today = now.strftime("%Y-%m-%d")
+    current_hour = now.hour
+
+    # Check if today's data exists
+    today_counts = get_snapshot_counts(today)
+    morning_exists = today_counts.get("morning", 0) > 0
+    evening_exists = today_counts.get("evening", 0) > 0
+
+    # Auto-fetch morning if it's past 1 PM and missing
+    if current_hour >= 13 and not morning_exists:
+        with st.spinner("Auto-fetching morning odds..."):
+            try:
+                collect_snapshot(snapshot_type="morning", force=True)
+                st.toast("Morning odds fetched!", icon="☀️")
+            except Exception as e:
+                st.toast(f"Failed to fetch morning odds: {e}", icon="⚠️")
+
+    # Auto-fetch evening if it's past 6 PM and missing
+    if current_hour >= 18 and not evening_exists:
+        with st.spinner("Auto-fetching evening odds..."):
+            try:
+                collect_snapshot(snapshot_type="evening", force=True)
+                st.toast("Evening odds fetched!", icon="🌙")
+            except Exception as e:
+                st.toast(f"Failed to fetch evening odds: {e}", icon="⚠️")
+
+    st.session_state.auto_fetched = True
 
 # Sidebar
 with st.sidebar:
