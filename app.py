@@ -205,15 +205,16 @@ def render_game_card(game, container):
 # Initialize
 init_database()
 
+# Always work with today's date only
+now = datetime.now(EST)
+today = now.strftime("%Y-%m-%d")
+current_hour = now.hour
+
 # Auto-fetch today's data if missing (runs once per session)
 if "auto_fetched" not in st.session_state:
     st.session_state.auto_fetched = False
 
 if not st.session_state.auto_fetched:
-    now = datetime.now(EST)
-    today = now.strftime("%Y-%m-%d")
-    current_hour = now.hour
-
     fetched_something = False
 
     # Check if today's data exists
@@ -223,7 +224,7 @@ if not st.session_state.auto_fetched:
 
     # Auto-fetch morning if it's past 1 PM and missing
     if current_hour >= 13 and not morning_exists:
-        with st.spinner(f"Auto-fetching morning odds for {today}..."):
+        with st.spinner(f"Fetching morning odds for {today}..."):
             try:
                 collect_snapshot(snapshot_type="morning", force=True)
                 fetched_something = True
@@ -232,7 +233,7 @@ if not st.session_state.auto_fetched:
 
     # Auto-fetch evening if it's past 6 PM and missing
     if current_hour >= 18 and not evening_exists:
-        with st.spinner(f"Auto-fetching evening odds for {today}..."):
+        with st.spinner(f"Fetching evening odds for {today}..."):
             try:
                 collect_snapshot(snapshot_type="evening", force=True)
                 fetched_something = True
@@ -262,18 +263,9 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### Filters")
 
-    available_dates = get_all_dates()
-
-    if not available_dates:
-        st.warning("No data yet. Click a button above to fetch odds.")
-        st.stop()
-
-    selected_date = st.selectbox(
-        "Date",
-        options=available_dates,
-        index=0,
-        format_func=lambda x: datetime.strptime(x, "%Y-%m-%d").strftime("%b %d, %Y")
-    )
+    # Always use today's date
+    selected_date = today
+    st.caption(f"📅 {datetime.strptime(today, '%Y-%m-%d').strftime('%B %d, %Y')}")
 
     selected_books = st.multiselect(
         "Sportsbooks",
@@ -288,32 +280,44 @@ with st.sidebar:
         format_func=lambda x: "NBA" if "nba" in x else "NCAAB"
     )
 
-# Check data availability
-snapshot_counts = get_snapshot_counts(selected_date)
+# Check data availability for today
+snapshot_counts = get_snapshot_counts(today)
 morning_count = snapshot_counts.get("morning", 0)
 evening_count = snapshot_counts.get("evening", 0)
 
 # Show fetch buttons in main area if data is missing
 if morning_count == 0 or evening_count == 0:
     st.markdown("## 📊 Odds Movement")
+    st.caption(f"Today: {datetime.strptime(today, '%Y-%m-%d').strftime('%B %d, %Y')}")
 
-    st.warning(f"Need both morning and evening snapshots to compare.")
+    if current_hour < 13:
+        st.info("Morning odds will be available after 1 PM EST")
+    elif current_hour < 18:
+        if morning_count == 0:
+            st.warning("Morning odds not yet fetched. Click below to fetch.")
+        else:
+            st.info("Evening odds will be available after 6 PM EST")
+    else:
+        st.warning("Need both morning and evening snapshots to compare.")
 
     st.markdown("### Fetch Odds Data")
     col1, col2, col3 = st.columns([1, 1, 2])
 
     with col1:
         morning_label = "☀️ Morning" + (" ✓" if morning_count > 0 else "")
-        if st.button(morning_label, use_container_width=True, disabled=morning_count > 0, key="missing_morning"):
+        morning_disabled = morning_count > 0 or current_hour < 13
+        if st.button(morning_label, use_container_width=True, disabled=morning_disabled, key="missing_morning"):
             confirm_morning_fetch()
 
     with col2:
         evening_label = "🌙 Evening" + (" ✓" if evening_count > 0 else "")
-        if st.button(evening_label, use_container_width=True, disabled=evening_count > 0, key="missing_evening"):
+        evening_disabled = evening_count > 0 or current_hour < 18
+        if st.button(evening_label, use_container_width=True, disabled=evening_disabled, key="missing_evening"):
             confirm_evening_fetch()
 
     with col3:
         st.caption(f"Morning: {morning_count} games | Evening: {evening_count} games")
+        st.caption(f"Current time: {now.strftime('%I:%M %p')} EST")
 
     st.stop()
 
