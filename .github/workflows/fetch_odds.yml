@@ -1,0 +1,61 @@
+name: Fetch Odds
+
+on:
+  schedule:
+    # Morning: 1 PM EST = 6 PM UTC
+    - cron: '0 18 * * *'
+    # Evening: 6 PM EST = 11 PM UTC
+    - cron: '0 23 * * *'
+  workflow_dispatch:  # Allows manual trigger
+    inputs:
+      snapshot_type:
+        description: 'Snapshot type to fetch'
+        required: true
+        default: 'morning'
+        type: choice
+        options:
+          - morning
+          - evening
+
+jobs:
+  fetch-odds:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Determine snapshot type
+        id: snapshot
+        run: |
+          HOUR=$(date -u +%H)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "type=${{ inputs.snapshot_type }}" >> $GITHUB_OUTPUT
+          elif [ "$HOUR" -eq 18 ]; then
+            echo "type=morning" >> $GITHUB_OUTPUT
+          else
+            echo "type=evening" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fetch odds
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          python collector.py --type ${{ steps.snapshot.outputs.type }} --force
+
+      - name: Commit and push database
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add odds.db
+          git diff --staged --quiet || git commit -m "Auto-fetch ${{ steps.snapshot.outputs.type }} odds $(date +'%Y-%m-%d')"
+          git push
