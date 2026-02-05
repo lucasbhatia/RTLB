@@ -22,6 +22,19 @@ def get_api_key():
     return "YOUR_ODDS_API_KEY"
 
 
+def get_db_path():
+    """Get database path - uses Railway volume if available."""
+    # Check if running on Railway with a volume
+    railway_volume = os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+    if railway_volume:
+        # Ensure directory exists
+        os.makedirs(railway_volume, exist_ok=True)
+        return os.path.join(railway_volume, "odds.db")
+
+    # Local development
+    return "odds.db"
+
+
 @dataclass(frozen=True)
 class Config:
     """Application configuration."""
@@ -29,9 +42,9 @@ class Config:
     # API Settings
     ODDS_API_KEY: str = get_api_key()
     BASE_URL: str = "https://api.the-odds-api.com/v4/sports"
-    
-    # Database
-    DB_FILE: str = "odds.db"
+
+    # Database - uses persistent volume on Railway
+    DB_FILE: str = get_db_path()
     
     # Timezone
     TIMEZONE: str = "US/Eastern"

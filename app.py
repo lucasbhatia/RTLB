@@ -230,41 +230,34 @@ now = datetime.now(EST)
 today = now.strftime("%Y-%m-%d")
 current_hour = now.hour
 
-# Auto-fetch today's data if missing (runs once per session)
-if "auto_fetched" not in st.session_state:
-    st.session_state.auto_fetched = False
+# Check if today's data exists in the database
+today_counts = get_snapshot_counts(today)
+morning_exists = today_counts.get("morning", 0) > 0
+evening_exists = today_counts.get("evening", 0) > 0
 
-if not st.session_state.auto_fetched:
-    fetched_something = False
-
-    # Check if today's data exists
-    today_counts = get_snapshot_counts(today)
-    morning_exists = today_counts.get("morning", 0) > 0
-    evening_exists = today_counts.get("evening", 0) > 0
-
-    # Auto-fetch morning if it's past 1 PM and missing
-    if current_hour >= 13 and not morning_exists:
+# Auto-fetch ONLY if data doesn't exist in database
+# This prevents re-fetching - once data is in DB, it stays
+if not morning_exists and current_hour >= 13:
+    # Only fetch if this session hasn't already tried
+    if "tried_morning_fetch" not in st.session_state:
+        st.session_state.tried_morning_fetch = True
         with st.spinner(f"Fetching morning odds for {today}..."):
             try:
                 collect_snapshot(snapshot_type="morning", force=True)
-                fetched_something = True
+                st.rerun()
             except Exception as e:
                 st.error(f"Failed to fetch morning odds: {e}")
 
-    # Auto-fetch evening if it's past 6 PM and missing
-    if current_hour >= 18 and not evening_exists:
+if not evening_exists and current_hour >= 18:
+    # Only fetch if this session hasn't already tried
+    if "tried_evening_fetch" not in st.session_state:
+        st.session_state.tried_evening_fetch = True
         with st.spinner(f"Fetching evening odds for {today}..."):
             try:
                 collect_snapshot(snapshot_type="evening", force=True)
-                fetched_something = True
+                st.rerun()
             except Exception as e:
                 st.error(f"Failed to fetch evening odds: {e}")
-
-    st.session_state.auto_fetched = True
-
-    # Rerun to show new data
-    if fetched_something:
-        st.rerun()
 
 # Sidebar
 with st.sidebar:
